@@ -3,6 +3,7 @@ import type { RouterMiddleware } from '@oomfware/fetch-router';
 import { convertFormData } from './form-utils.ts';
 import {
 	FORM_STORE_KEY,
+	kForm,
 	processForm,
 	setFormState,
 	type Form,
@@ -17,6 +18,17 @@ import {
  * a record of form instances to register with the middleware.
  */
 export type FormDefinitions = Record<string, Form<any, any>>;
+
+// #endregion
+
+// #region helpers
+
+/**
+ * checks if a value is a form instance created by form().
+ */
+function isForm(value: unknown): value is Form<any, any> {
+	return value !== null && typeof value === 'object' && kForm in value;
+}
 
 // #endregion
 
@@ -54,6 +66,10 @@ export function forms(definitions: FormDefinitions): RouterMiddleware {
 	const formsById = new Map<string, InternalForm<any, any>>();
 
 	for (const [name, formInstance] of Object.entries(definitions)) {
+		if (!isForm(formInstance)) {
+			continue;
+		}
+
 		const f = formInstance as InternalForm<any, any>;
 
 		formConfig.set(f, { id: name });

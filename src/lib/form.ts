@@ -53,11 +53,15 @@ type InvalidFieldArray<T> = {
 } & ((message: string) => StandardSchemaV1.Issue);
 
 /**
+ * symbol used to identify form instances.
+ */
+export const kForm = Symbol.for('@oomfware/forms');
+
+/**
  * internal info attached to a form instance.
  * used by the forms() middleware to identify and process forms.
  */
 export interface FormInfo {
-	type: 'form';
 	/** the schema, if any */
 	schema: StandardSchemaV1 | null;
 	/** the handler function */
@@ -322,7 +326,6 @@ export function form(
 	const instance = {} as InternalForm<any, any>;
 
 	const info: FormInfo = {
-		type: 'form',
 		schema,
 		fn,
 	};
@@ -384,6 +387,12 @@ export function form(
 	// internal info
 	Object.defineProperty(instance, '__', {
 		value: info,
+	});
+
+	// brand symbol for identification
+	Object.defineProperty(instance, kForm, {
+		value: true,
+		enumerable: false,
 	});
 
 	return instance;
