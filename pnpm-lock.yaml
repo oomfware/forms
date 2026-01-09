@@ -16,8 +16,8 @@ importers:
         specifier: ^4.7.0
         version: 4.7.0(@prettier/plugin-oxc@0.1.3)(prettier@3.7.4)
       '@oomfware/fetch-router':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.2.1
+        version: 0.2.1
       '@prettier/plugin-oxc':
         specifier: ^0.1.3
         version: 0.1.3
@@ -125,8 +125,8 @@ packages:
   '@napi-rs/wasm-runtime@1.1.1':
     resolution: {integrity: sha512-p64ah1M1ld8xjWv3qbvFwHiFVWrq1yFvV4f7w+mzaqiR4IlSgkqhcRdHwsGgomwzBH51sRY4NEowLxnaBjcW/A==}
 
-  '@oomfware/fetch-router@0.1.0':
-    resolution: {integrity: sha512-0oBJa4PSJdVSZ9faeHAl0mEMARkkasfaLXgvvDrsPSQLSVJQH7xZvk3FGj5epux4jE8hkitjjv1oe+5qmLy+IA==}
+  '@oomfware/fetch-router@0.2.1':
+    resolution: {integrity: sha512-WV0cSeKjyTmM2pXYlRzv1md3Dym1vMR8PnJ/GfZUg8i1GS7RIDezmMkqVaWI/9IpeOHhs+QeDO41q1u+z1EzSg==}
 
   '@oxc-parser/binding-android-arm64@0.99.0':
     resolution: {integrity: sha512-V4jhmKXgQQdRnm73F+r3ZY4pUEsijQeSraFeaCGng7abSNJGs76X6l82wHnmjLGFAeY00LWtjcELs7ZmbJ9+lA==}
@@ -848,7 +848,7 @@ snapshots:
       '@tybys/wasm-util': 0.10.1
     optional: true
 
-  '@oomfware/fetch-router@0.1.0':
+  '@oomfware/fetch-router@0.2.1':
     dependencies:
       '@remix-run/route-pattern': 0.16.0
 

@@ -1,4 +1,4 @@
-import type { RouterMiddleware } from '@oomfware/fetch-router';
+import type { Middleware } from '@oomfware/fetch-router';
 
 import { convertFormData } from './form-utils.ts';
 import {
@@ -61,7 +61,7 @@ function isForm(value: unknown): value is Form<any, any> {
  * });
  * ```
  */
-export function forms(definitions: FormDefinitions): RouterMiddleware {
+export function forms(definitions: FormDefinitions): Middleware {
 	const formConfig = new WeakMap<InternalForm<any, any>, FormConfig>();
 	const formsById = new Map<string, InternalForm<any, any>>();
 
@@ -76,9 +76,7 @@ export function forms(definitions: FormDefinitions): RouterMiddleware {
 		formsById.set(name, f);
 	}
 
-	return async (context, next) => {
-		const { url, request, store } = context;
-
+	return async ({ request, url, store }, next) => {
 		// create form store for this request
 		const formStore: FormStore = {
 			configs: formConfig,
@@ -108,7 +106,7 @@ export function forms(definitions: FormDefinitions): RouterMiddleware {
 			}
 		}
 
-		return next(context);
+		return next();
 	};
 }
 
