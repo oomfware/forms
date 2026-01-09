@@ -30,6 +30,15 @@ function isForm(value: unknown): value is Form<any, any> {
 	return value !== null && typeof value === 'object' && kForm in value;
 }
 
+/**
+ * checks if the request is a cross-origin request based on Sec-Fetch-Site header.
+ * used for CSRF protection.
+ */
+function isCrossOrigin(request: Request): boolean {
+	const secFetchSite = request.headers.get('sec-fetch-site');
+	return secFetchSite !== null && secFetchSite !== 'same-origin' && secFetchSite !== 'none';
+}
+
 // #endregion
 
 // #region middleware
@@ -94,6 +103,10 @@ export function forms(definitions: FormDefinitions): Middleware {
 			const formInstance = formsById.get(action);
 
 			if (formInstance) {
+				// reject cross-origin form submissions
+				if (isCrossOrigin(request)) {
+					return new Response(null, { status: 403 });
+				}
 				// parse form data
 				const formData = await request.formData();
 				const data = convertFormData(formData as unknown as FormData);
