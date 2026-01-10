@@ -212,6 +212,120 @@ export interface FieldIssue {
 	message: string;
 }
 
+// maps input types to their corresponding value types
+type InputTypeMap = {
+	text: string;
+	email: string;
+	password: string;
+	url: string;
+	tel: string;
+	search: string;
+	number: number;
+	range: number;
+	date: string;
+	'datetime-local': string;
+	time: string;
+	month: string;
+	week: string;
+	color: string;
+	checkbox: boolean | string[];
+	radio: string;
+	file: File;
+	'file multiple': File[];
+	hidden: string;
+	submit: string;
+	select: string;
+	'select multiple': string[];
+};
+
+/**
+ * valid input types for a given value type
+ */
+export type FieldInputType<T> = {
+	[K in keyof InputTypeMap]: T extends InputTypeMap[K] ? K : never;
+}[keyof InputTypeMap];
+
+// arguments for the `as()` method based on input type and field value
+type AsArgs<Type extends keyof InputTypeMap, Value> = Type extends 'checkbox'
+	? Value extends string[]
+		? [type: Type, value: Value[number] | (string & {})]
+		: [type: Type]
+	: Type extends 'radio' | 'submit' | 'hidden'
+		? [type: Type, value: Value | (string & {})]
+		: [type: Type];
+
+// input element properties for checkbox and radio inputs
+interface CheckboxRadioProps {
+	name: string;
+	type: 'checkbox' | 'radio';
+	value: string;
+	'aria-invalid'?: 'true';
+	readonly checked: boolean;
+}
+
+// input element properties for file inputs
+interface FileProps {
+	name: string;
+	type: 'file';
+	'aria-invalid'?: 'true';
+}
+
+// input element properties for file multiple inputs
+interface FileMultipleProps {
+	name: string;
+	type: 'file';
+	multiple: true;
+	'aria-invalid'?: 'true';
+}
+
+// input element properties for select inputs
+interface SelectProps {
+	name: string;
+	multiple: false;
+	'aria-invalid'?: 'true';
+	readonly value: string;
+}
+
+// input element properties for select multiple inputs
+interface SelectMultipleProps {
+	name: string;
+	multiple: true;
+	'aria-invalid'?: 'true';
+	readonly value: string[];
+}
+
+// input element properties for text inputs (no type attribute needed)
+interface TextProps {
+	name: string;
+	'aria-invalid'?: 'true';
+	readonly value: string;
+}
+
+// input element properties for other inputs with type attribute
+interface TypedInputProps<T extends string> {
+	name: string;
+	type: T;
+	'aria-invalid'?: 'true';
+	readonly value: string;
+}
+
+/**
+ * input element properties based on input type
+ */
+export type InputElementProps<T extends keyof InputTypeMap> = T extends 'checkbox' | 'radio'
+	? CheckboxRadioProps
+	: T extends 'file'
+		? FileProps
+		: T extends 'file multiple'
+			? FileMultipleProps
+			: T extends 'select'
+				? SelectProps
+				: T extends 'select multiple'
+					? SelectMultipleProps
+					: T extends 'text'
+						? TextProps
+						: TypedInputProps<T>;
+
 export interface FieldProxyMethods<T> {
 	/** get the current value of this field */
 	value(): T | undefined;
@@ -224,42 +338,19 @@ export interface FieldProxyMethods<T> {
 	/**
 	 * get props for binding to an input element.
 	 * returns an object with `name`, `aria-invalid`, and type-specific props.
+	 *
+	 * @example
+	 * ```ts
+	 * <input {...fields.name.as('text')} />
+	 * <input {...fields.age.as('number')} />
+	 * <input {...fields.agreed.as('checkbox')} />
+	 * <input {...fields.color.as('radio', 'red')} />
+	 * ```
 	 */
-	as(type: InputType, value?: string): InputProps;
+	as<K extends FieldInputType<T>>(...args: AsArgs<K, T>): InputElementProps<K>;
 }
 
-export type InputType =
-	| 'text'
-	| 'number'
-	| 'range'
-	| 'checkbox'
-	| 'radio'
-	| 'file'
-	| 'file multiple'
-	| 'select'
-	| 'select multiple'
-	| 'hidden'
-	| 'submit'
-	| 'email'
-	| 'password'
-	| 'tel'
-	| 'url'
-	| 'date'
-	| 'time'
-	| 'datetime-local'
-	| 'month'
-	| 'week'
-	| 'color'
-	| 'search';
-
-export interface InputProps {
-	name: string;
-	'aria-invalid'?: 'true';
-	type?: string;
-	value?: string;
-	checked?: boolean;
-	multiple?: boolean;
-}
+export type InputType = keyof InputTypeMap;
 
 /**
  * creates a proxy-based field accessor for form data.
@@ -322,7 +413,7 @@ export function createFieldProxy<T>(
 			}
 
 			if (prop === 'as') {
-				const asFunc = (type: InputType, inputValue?: string): InputProps => {
+				const asFunc = (type: InputType, inputValue?: string): Record<string, unknown> => {
 					const isArray =
 						type === 'file multiple' ||
 						type === 'select multiple' ||
@@ -331,8 +422,8 @@ export function createFieldProxy<T>(
 					const prefix =
 						type === 'number' || type === 'range' ? 'n:' : type === 'checkbox' && !isArray ? 'b:' : '';
 
-					// Base properties for all input types
-					const baseProps: InputProps = {
+					// base properties for all input types
+					const baseProps: Record<string, unknown> = {
 						name: prefix + key + (isArray ? '[]' : ''),
 						get 'aria-invalid'() {
 							const issues = getIssues();
