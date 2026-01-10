@@ -1,18 +1,6 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 
-/**
- * internal representation of a form validation issue with computed path info
- */
-export interface InternalFormIssue {
-	/** dot/bracket notation path string (e.g., "user.emails[0]") */
-	name: string;
-	/** path segments as array */
-	path: (string | number)[];
-	/** error message */
-	message: string;
-	/** whether this issue came from server validation */
-	server: boolean;
-}
+import type { FormIssue, InputType, InternalFormIssue } from './types.ts';
 
 /**
  * sets a value in a nested object using a path string, mutating the original object
@@ -207,151 +195,6 @@ export function buildPathString(path: (string | number)[]): string {
 
 // #region field proxy
 
-export interface FieldIssue {
-	path: (string | number)[];
-	message: string;
-}
-
-// maps input types to their corresponding value types
-type InputTypeMap = {
-	text: string;
-	email: string;
-	password: string;
-	url: string;
-	tel: string;
-	search: string;
-	number: number;
-	range: number;
-	date: string;
-	'datetime-local': string;
-	time: string;
-	month: string;
-	week: string;
-	color: string;
-	checkbox: boolean | string[];
-	radio: string;
-	file: File;
-	'file multiple': File[];
-	hidden: string;
-	submit: string;
-	select: string;
-	'select multiple': string[];
-};
-
-/**
- * valid input types for a given value type
- */
-export type FieldInputType<T> = {
-	[K in keyof InputTypeMap]: T extends InputTypeMap[K] ? K : never;
-}[keyof InputTypeMap];
-
-// arguments for the `as()` method based on input type and field value
-type AsArgs<Type extends keyof InputTypeMap, Value> = Type extends 'checkbox'
-	? Value extends string[]
-		? [type: Type, value: Value[number] | (string & {})]
-		: [type: Type]
-	: Type extends 'radio' | 'submit' | 'hidden'
-		? [type: Type, value: Value | (string & {})]
-		: [type: Type];
-
-// input element properties for checkbox and radio inputs
-interface CheckboxRadioProps {
-	name: string;
-	type: 'checkbox' | 'radio';
-	value: string;
-	'aria-invalid'?: 'true';
-	readonly checked: boolean;
-}
-
-// input element properties for file inputs
-interface FileProps {
-	name: string;
-	type: 'file';
-	'aria-invalid'?: 'true';
-}
-
-// input element properties for file multiple inputs
-interface FileMultipleProps {
-	name: string;
-	type: 'file';
-	multiple: true;
-	'aria-invalid'?: 'true';
-}
-
-// input element properties for select inputs
-interface SelectProps {
-	name: string;
-	multiple: false;
-	'aria-invalid'?: 'true';
-	readonly value: string;
-}
-
-// input element properties for select multiple inputs
-interface SelectMultipleProps {
-	name: string;
-	multiple: true;
-	'aria-invalid'?: 'true';
-	readonly value: string[];
-}
-
-// input element properties for text inputs (no type attribute needed)
-interface TextProps {
-	name: string;
-	'aria-invalid'?: 'true';
-	readonly value: string;
-}
-
-// input element properties for other inputs with type attribute
-interface TypedInputProps<T extends string> {
-	name: string;
-	type: T;
-	'aria-invalid'?: 'true';
-	readonly value: string;
-}
-
-/**
- * input element properties based on input type
- */
-export type InputElementProps<T extends keyof InputTypeMap> = T extends 'checkbox' | 'radio'
-	? CheckboxRadioProps
-	: T extends 'file'
-		? FileProps
-		: T extends 'file multiple'
-			? FileMultipleProps
-			: T extends 'select'
-				? SelectProps
-				: T extends 'select multiple'
-					? SelectMultipleProps
-					: T extends 'text'
-						? TextProps
-						: TypedInputProps<T>;
-
-export interface FieldProxyMethods<T> {
-	/** get the current value of this field */
-	value(): T | undefined;
-	/** set the value of this field */
-	set(value: T): T;
-	/** get validation issues for this exact field */
-	issues(): FieldIssue[] | undefined;
-	/** get all validation issues for this field and its descendants */
-	allIssues(): FieldIssue[] | undefined;
-	/**
-	 * get props for binding to an input element.
-	 * returns an object with `name`, `aria-invalid`, and type-specific props.
-	 *
-	 * @example
-	 * ```ts
-	 * <input {...fields.name.as('text')} />
-	 * <input {...fields.age.as('number')} />
-	 * <input {...fields.agreed.as('checkbox')} />
-	 * <input {...fields.color.as('radio', 'red')} />
-	 * ```
-	 */
-	as<K extends FieldInputType<T>>(...args: AsArgs<K, T>): InputElementProps<K>;
-}
-
-export type InputType = keyof InputTypeMap;
-
 /**
  * creates a proxy-based field accessor for form data.
  * allows type-safe nested field access like `fields.user.emails[0].address.value()`.
@@ -371,7 +214,7 @@ export function createFieldProxy<T>(
 		get(target, prop) {
 			if (typeof prop === 'symbol') return (target as Record<symbol, unknown>)[prop];
 
-			// Handle array access like jobs[0]
+			// handle array access like jobs[0]
 			if (/^\d+$/.test(prop)) {
 				return createFieldProxy({}, getInput, setInput, getIssues, [...path, parseInt(prop, 10)]);
 			}
@@ -391,7 +234,7 @@ export function createFieldProxy<T>(
 			}
 
 			if (prop === 'issues' || prop === 'allIssues') {
-				const issuesFunc = (): FieldIssue[] | undefined => {
+				const issuesFunc = (): FormIssue[] | undefined => {
 					const allIssues = getIssues()[key === '' ? '$' : key];
 
 					if (prop === 'allIssues') {
@@ -431,12 +274,12 @@ export function createFieldProxy<T>(
 						},
 					};
 
-					// Add type attribute only for non-text inputs and non-select elements
+					// add type attribute only for non-text inputs and non-select elements
 					if (type !== 'text' && type !== 'select' && type !== 'select multiple') {
 						baseProps.type = type === 'file multiple' ? 'file' : type;
 					}
 
-					// Handle submit and hidden inputs
+					// handle submit and hidden inputs
 					if (type === 'submit' || type === 'hidden') {
 						if (!inputValue) {
 							throw new Error(`\`${type}\` inputs must have a value`);
@@ -447,7 +290,7 @@ export function createFieldProxy<T>(
 						});
 					}
 
-					// Handle select inputs
+					// handle select inputs
 					if (type === 'select' || type === 'select multiple') {
 						return Object.defineProperties(baseProps, {
 							multiple: { value: isArray, enumerable: true },
@@ -460,7 +303,7 @@ export function createFieldProxy<T>(
 						});
 					}
 
-					// Handle checkbox inputs
+					// handle checkbox inputs
 					if (type === 'checkbox' || type === 'radio') {
 						if (type === 'radio' && !inputValue) {
 							throw new Error('Radio inputs must have a value');
@@ -491,14 +334,14 @@ export function createFieldProxy<T>(
 						});
 					}
 
-					// Handle file inputs (can't persist value, just return name/type/multiple)
+					// handle file inputs (can't persist value, just return name/type/multiple)
 					if (type === 'file' || type === 'file multiple') {
 						return Object.defineProperties(baseProps, {
 							multiple: { value: isArray, enumerable: true },
 						});
 					}
 
-					// Handle all other input types (text, number, etc.)
+					// handle all other input types (text, number, etc.)
 					return Object.defineProperties(baseProps, {
 						value: {
 							enumerable: true,
@@ -513,7 +356,7 @@ export function createFieldProxy<T>(
 				return createFieldProxy(asFunc, getInput, setInput, getIssues, [...path, 'as']);
 			}
 
-			// Handle property access (nested fields)
+			// handle property access (nested fields)
 			return createFieldProxy({}, getInput, setInput, getIssues, [...path, prop]);
 		},
 	}) as T;

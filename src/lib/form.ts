@@ -3,27 +3,10 @@ import { getContext } from '@oomfware/fetch-router/middlewares/async-context';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 
 import { ValidationError } from './errors.ts';
-import {
-	createFieldProxy,
-	deepSet,
-	flattenIssues,
-	normalizeIssue,
-	type InternalFormIssue,
-} from './form-utils.ts';
-import type { MaybePromise } from './types.ts';
+import { createFieldProxy, deepSet, flattenIssues, normalizeIssue } from './form-utils.ts';
+import type { FormFields, FormInput, InternalFormIssue, MaybePromise } from './types.ts';
 
 // #region types
-
-export interface FormInput {
-	[key: string]: MaybeArray<string | number | boolean | File | FormInput>;
-}
-
-type MaybeArray<T> = T | T[];
-
-export interface FormIssue {
-	message: string;
-	path: (string | number)[];
-}
 
 /**
  * the issue creator proxy passed to form callbacks.
@@ -133,64 +116,6 @@ export interface FormButtonProps {
 	type: 'submit';
 	readonly formaction: string;
 }
-
-// #region field types
-
-/** valid leaf value types for form fields */
-export type FormFieldValue = string | string[] | number | boolean | File | File[];
-
-/** guard to prevent infinite recursion when T is unknown or has an index signature */
-type WillRecurseIndefinitely<T> = unknown extends T ? true : string extends keyof T ? true : false;
-
-/** base methods available on all form fields */
-export interface FormFieldMethods<T> {
-	/** get the current value */
-	value(): T | undefined;
-	/** set the value */
-	set(value: T): T;
-	/** get validation issues for this field */
-	issues(): FormIssue[] | undefined;
-}
-
-/** leaf field (primitives, files) with .as() method */
-export type FormFieldLeaf<T extends FormFieldValue> = FormFieldMethods<T> & {
-	/** get props for an input element */
-	as(type: string, value?: string): Record<string, unknown>;
-};
-
-/** container field (objects, arrays) with allIssues() method */
-type FormFieldContainer<T> = FormFieldMethods<T> & {
-	/** get all issues for this field and descendants */
-	allIssues(): FormIssue[] | undefined;
-};
-
-/** fallback field type when recursion would be infinite */
-type FormFieldUnknown<T> = FormFieldMethods<T> & {
-	/** get all issues for this field and descendants */
-	allIssues(): FormIssue[] | undefined;
-	/** get props for an input element */
-	as(type: string, value?: string): Record<string, unknown>;
-} & {
-	[key: string | number]: FormFieldUnknown<unknown>;
-};
-
-/**
- * recursive type to build form fields structure with proxy access.
- * preserves type information through the object hierarchy.
- */
-export type FormFields<T> = T extends void
-	? Record<string, never>
-	: WillRecurseIndefinitely<T> extends true
-		? FormFieldUnknown<T>
-		: NonNullable<T> extends string | number | boolean | File
-			? FormFieldLeaf<NonNullable<T>>
-			: T extends string[] | File[]
-				? FormFieldLeaf<T> & { [K in number]: FormFieldLeaf<T[number]> }
-				: T extends Array<infer U>
-					? FormFieldContainer<T> & { [K in number]: FormFields<U> }
-					: FormFieldContainer<T> & { [K in keyof T]-?: FormFields<T[K]> };
-
-// #endregion
 
 // #region issue creator
 

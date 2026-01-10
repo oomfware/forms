@@ -9,8 +9,8 @@ import {
 	flattenIssues,
 	normalizeIssue,
 	splitPath,
-	type InternalFormIssue,
 } from './form-utils.ts';
+import type { InternalFormIssue } from './types.ts';
 
 // #region splitPath
 
