@@ -85,15 +85,20 @@ export type FieldInputType<T> = {
 }[keyof InputTypeMap];
 
 /**
- * arguments for the `as()` method based on input type and field value
+ * value argument for the `as()` method based on input type.
+ * returns `[value]` tuple for types that require a value, or `[]` otherwise.
+ *
+ * note: separating `type` from `value` in the `.as()` signature ensures TypeScript
+ * can properly infer the type parameter before resolving the value constraint.
+ * using `...args: [type, value?]` with a union of tuple types causes inference issues.
  */
-export type AsArgs<Type extends keyof InputTypeMap, Value> = Type extends 'checkbox'
+export type AsValueArgs<Type extends keyof InputTypeMap, Value> = Type extends 'checkbox'
 	? Value extends string[]
-		? [type: Type, value: Value[number] | (string & {})]
-		: [type: Type]
+		? [value: Value[number] | (string & {})]
+		: []
 	: Type extends 'radio' | 'submit' | 'hidden'
-		? [type: Type, value: Value | (string & {})]
-		: [type: Type];
+		? [value: Value | (string & {})]
+		: [];
 
 // #endregion
 
@@ -200,7 +205,7 @@ export type FormFieldLeaf<T extends FormFieldValue> = FieldMethods<T> & {
 	 * <input {...fields.color.as('radio', 'red')} />
 	 * ```
 	 */
-	as<K extends FieldInputType<T>>(...args: AsArgs<K, T>): InputElementProps<K>;
+	as<K extends FieldInputType<T>>(type: K, ...value: AsValueArgs<K, T>): InputElementProps<K>;
 };
 
 /**
@@ -214,23 +219,30 @@ export type FormFieldContainer<T> = FieldMethods<T> & {
 /**
  * fallback field type when recursion would be infinite
  */
-type FormFieldUnknown<T> = FieldMethods<T> & {
+type UnknownField<T> = FieldMethods<T> & {
 	/** get all issues for this field and descendants */
 	allIssues(): FormIssue[] | undefined;
 	/** get props for an input element */
-	as<K extends FieldInputType<FormFieldValue>>(...args: AsArgs<K, FormFieldValue>): InputElementProps<K>;
+	as<K extends FieldInputType<FormFieldValue>>(
+		type: K,
+		...value: AsValueArgs<K, FormFieldValue>
+	): InputElementProps<K>;
 } & {
-	[key: string | number]: FormFieldUnknown<unknown>;
+	[key: string | number]: UnknownField<any>;
+};
+
+// by breaking this out into its own type, we avoid the TS recursion depth limit
+type RecursiveFormFields = FormFieldContainer<any> & {
+	[key: string | number]: UnknownField<any>;
 };
 
 /**
  * recursive type to build form fields structure with proxy access.
  * preserves type information through the object hierarchy.
  */
-export type FormFields<T> = T extends void
-	? Record<string, never>
-	: WillRecurseIndefinitely<T> extends true
-		? FormFieldUnknown<T>
+export type FormFields<T> =
+	WillRecurseIndefinitely<T> extends true
+		? RecursiveFormFields
 		: NonNullable<T> extends string | number | boolean | File
 			? FormFieldLeaf<NonNullable<T>>
 			: T extends string[] | File[]
