@@ -245,9 +245,9 @@ export type FormFields<T> =
 		? RecursiveFormFields
 		: NonNullable<T> extends string | number | boolean | File
 			? FormFieldLeaf<NonNullable<T>>
-			: T extends string[] | File[]
+			: [T] extends [string[] | File[]]
 				? FormFieldLeaf<T> & { [K in number]: FormFieldLeaf<T[number]> }
-				: T extends Array<infer U>
+				: [T] extends [Array<infer U>]
 					? FormFieldContainer<T> & { [K in number]: FormFields<U> }
 					: FormFieldContainer<T> & { [K in keyof T]-?: FormFields<T[K]> };
 
