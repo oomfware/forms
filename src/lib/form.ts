@@ -87,6 +87,17 @@ export interface FormStore {
 export const FORM_STORE_KEY = createInjectionKey<FormStore>();
 
 /**
+ * options for configuring form behavior.
+ */
+export interface FormOptions {
+	/**
+	 * if true, replaces all existing search params instead of preserving them.
+	 * @default false
+	 */
+	replaceParams?: boolean;
+}
+
+/**
  * the return value of a form() function.
  * can be spread onto a <form> element.
  */
@@ -101,6 +112,12 @@ export interface Form<Input extends FormInput | void, Output> {
 	readonly fields: FormFields<Input>;
 	/** spread this onto a <button> or <input type="submit"> */
 	readonly buttonProps: FormButtonProps;
+	/**
+	 * returns a configured form with the given options.
+	 * @param options form configuration options
+	 * @returns a new form object with the options applied
+	 */
+	with(options: FormOptions): ConfiguredForm;
 }
 
 /**
@@ -213,6 +230,24 @@ export function setFormState<Input, Output>(
 
 // #endregion
 
+// #region action url helpers
+
+/**
+ * builds the form action URL, optionally preserving existing search params.
+ */
+function buildActionUrl(configId: string, replaceParams: boolean): string {
+	if (replaceParams) {
+		return `?__action=${configId}`;
+	}
+
+	const context = getContext();
+	const url = new URL(context.request.url);
+	url.searchParams.set('__action', configId);
+	return `?${url.searchParams.toString()}`;
+}
+
+// #endregion
+
 // #region form function
 
 /**
@@ -261,11 +296,11 @@ export function form(
 		enumerable: true,
 	});
 
-	// action - computed from form store
+	// action - computed from form store, preserves search params by default
 	Object.defineProperty(instance, 'action', {
 		get() {
 			const config = getFormConfig(instance);
-			return `?__action=${config.id}`;
+			return buildActionUrl(config.id, false);
 		},
 		enumerable: true,
 	});
@@ -298,13 +333,13 @@ export function form(
 		},
 	});
 
-	// buttonProps
+	// buttonProps - preserves search params by default
 	Object.defineProperty(instance, 'buttonProps', {
 		get() {
 			const config = getFormConfig(instance);
 			return {
 				type: 'submit' as const,
-				formaction: `?__action=${config.id}`,
+				formaction: buildActionUrl(config.id, false),
 			};
 		},
 	});
@@ -320,7 +355,59 @@ export function form(
 		enumerable: false,
 	});
 
+	// with() - returns a configured form
+	Object.defineProperty(instance, 'with', {
+		value: (options: FormOptions) => createConfiguredForm(instance, options),
+	});
+
 	return instance;
+}
+
+/**
+ * configured form props for spreading onto a form element.
+ */
+export interface ConfiguredForm {
+	readonly method: 'POST';
+	readonly action: string;
+	readonly buttonProps: FormButtonProps;
+	with(options: FormOptions): ConfiguredForm;
+}
+
+/**
+ * creates a configured form wrapper with custom options.
+ */
+function createConfiguredForm(source: InternalForm<any, any>, options: FormOptions): ConfiguredForm {
+	const replaceParams = options.replaceParams ?? false;
+	const configured = {} as ConfiguredForm;
+
+	Object.defineProperty(configured, 'method', {
+		value: 'POST',
+		enumerable: true,
+	});
+
+	Object.defineProperty(configured, 'action', {
+		get() {
+			const config = getFormConfig(source);
+			return buildActionUrl(config.id, replaceParams);
+		},
+		enumerable: true,
+	});
+
+	Object.defineProperty(configured, 'buttonProps', {
+		get() {
+			const config = getFormConfig(source);
+			return {
+				type: 'submit' as const,
+				formaction: buildActionUrl(config.id, replaceParams),
+			};
+		},
+	});
+
+	Object.defineProperty(configured, 'with', {
+		value: (newOptions: FormOptions) => createConfiguredForm(source, { ...options, ...newOptions }),
+	});
+
+	return configured;
 }
 
 // #endregion

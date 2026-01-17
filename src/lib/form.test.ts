@@ -323,6 +323,55 @@ describe('form properties', () => {
 		expect(json.buttonPropsType).toBe('submit');
 		expect(json.buttonPropsFormaction).toBe('?__action=testForm');
 	});
+
+	test('action preserves existing search params by default', async () => {
+		const testForm = form(async () => 'ok');
+		const routes = route({ index: '/' });
+		const router = createRouter({ middleware: [asyncContext()] });
+
+		router.map(routes, {
+			middleware: [forms({ testForm })],
+			actions: {
+				index() {
+					return Response.json({
+						action: testForm.action,
+						buttonPropsFormaction: testForm.buttonProps.formaction,
+					});
+				},
+			},
+		});
+
+		const response = await router.fetch(new Request('http://test/?page=2&filter=active'));
+		const json: any = await response.json();
+
+		expect(json.action).toBe('?page=2&filter=active&__action=testForm');
+		expect(json.buttonPropsFormaction).toBe('?page=2&filter=active&__action=testForm');
+	});
+
+	test('with({ replaceParams: true }) replaces search params', async () => {
+		const testForm = form(async () => 'ok');
+		const routes = route({ index: '/' });
+		const router = createRouter({ middleware: [asyncContext()] });
+
+		router.map(routes, {
+			middleware: [forms({ testForm })],
+			actions: {
+				index() {
+					const configured = testForm.with({ replaceParams: true });
+					return Response.json({
+						action: configured.action,
+						buttonPropsFormaction: configured.buttonProps.formaction,
+					});
+				},
+			},
+		});
+
+		const response = await router.fetch(new Request('http://test/?page=2&filter=active'));
+		const json: any = await response.json();
+
+		expect(json.action).toBe('?__action=testForm');
+		expect(json.buttonPropsFormaction).toBe('?__action=testForm');
+	});
 });
 
 describe('nested and array fields', () => {
