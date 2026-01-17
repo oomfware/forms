@@ -49,6 +49,7 @@ the source code is organized under `src/`:
 
 - Bun is the test runner
 - run tests via `mise exec -- bun test`
+- `bun test` does not check for errors involving `expectTypeOf`, run `pnpm run typecheck` for that
 
 ### working style
 
