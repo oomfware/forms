@@ -243,57 +243,6 @@ describe('underscore field redaction', () => {
 	});
 });
 
-describe('buttonProps', () => {
-	test('buttonProps allows multiple form actions', async () => {
-		const saveDraft = form(v.object({ content: v.string() }), async (data) => {
-			return { action: 'draft', content: data.content };
-		});
-
-		const publish = form(v.object({ content: v.string() }), async (data) => {
-			return { action: 'publish', content: data.content };
-		});
-
-		const routes = route({ index: '/' });
-		const router = createRouter({ middleware: [asyncContext()] });
-
-		router.map(routes, {
-			middleware: [forms({ saveDraft, publish })],
-			actions: {
-				index() {
-					if (saveDraft.result) {
-						return Response.json(saveDraft.result);
-					}
-					if (publish.result) {
-						return Response.json(publish.result);
-					}
-					return Response.json({
-						saveDraftAction: saveDraft.action,
-						publishAction: publish.buttonProps.formaction,
-					});
-				},
-			},
-		});
-
-		// test saveDraft action
-		const draftResponse = await router.fetch(
-			new Request('http://test/?__action=saveDraft', {
-				method: 'POST',
-				body: createFormData({ content: 'my post' }),
-			}),
-		);
-		expect(await draftResponse.json()).toEqual({ action: 'draft', content: 'my post' });
-
-		// test publish action via buttonProps
-		const publishResponse = await router.fetch(
-			new Request('http://test/?__action=publish', {
-				method: 'POST',
-				body: createFormData({ content: 'my post' }),
-			}),
-		);
-		expect(await publishResponse.json()).toEqual({ action: 'publish', content: 'my post' });
-	});
-});
-
 describe('form properties', () => {
 	test('form has correct method and action', async () => {
 		const testForm = form(v.object({ name: v.string() }), async () => ({ ok: true }));
@@ -308,8 +257,6 @@ describe('form properties', () => {
 					return Response.json({
 						method: testForm.method,
 						action: testForm.action,
-						buttonPropsType: testForm.buttonProps.type,
-						buttonPropsFormaction: testForm.buttonProps.formaction,
 					});
 				},
 			},
@@ -320,8 +267,6 @@ describe('form properties', () => {
 
 		expect(json.method).toBe('POST');
 		expect(json.action).toBe('?__action=testForm');
-		expect(json.buttonPropsType).toBe('submit');
-		expect(json.buttonPropsFormaction).toBe('?__action=testForm');
 	});
 
 	test('action preserves existing search params by default', async () => {
@@ -335,7 +280,6 @@ describe('form properties', () => {
 				index() {
 					return Response.json({
 						action: testForm.action,
-						buttonPropsFormaction: testForm.buttonProps.formaction,
 					});
 				},
 			},
@@ -345,7 +289,6 @@ describe('form properties', () => {
 		const json: any = await response.json();
 
 		expect(json.action).toBe('?page=2&filter=active&__action=testForm');
-		expect(json.buttonPropsFormaction).toBe('?page=2&filter=active&__action=testForm');
 	});
 
 	test('with({ replaceParams: true }) replaces search params', async () => {
@@ -360,7 +303,6 @@ describe('form properties', () => {
 					const configured = testForm.with({ replaceParams: true });
 					return Response.json({
 						action: configured.action,
-						buttonPropsFormaction: configured.buttonProps.formaction,
 					});
 				},
 			},
@@ -370,7 +312,6 @@ describe('form properties', () => {
 		const json: any = await response.json();
 
 		expect(json.action).toBe('?__action=testForm');
-		expect(json.buttonPropsFormaction).toBe('?__action=testForm');
 	});
 });
 

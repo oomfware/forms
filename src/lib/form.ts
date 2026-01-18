@@ -110,8 +110,6 @@ export interface Form<Input extends FormInput | void, Output> {
 	readonly result: Output | undefined;
 	/** access form fields using object notation */
 	readonly fields: FormFields<Input>;
-	/** spread this onto a <button> or <input type="submit"> */
-	readonly buttonProps: FormButtonProps;
 	/**
 	 * returns a configured form with the given options.
 	 * @param options form configuration options
@@ -127,11 +125,6 @@ export interface Form<Input extends FormInput | void, Output> {
 export interface InternalForm<Input extends FormInput | void, Output> extends Form<Input, Output> {
 	/** internal form info, used by forms() middleware */
 	readonly __: FormInfo;
-}
-
-export interface FormButtonProps {
-	type: 'submit';
-	readonly formaction: string;
 }
 
 // #region issue creator
@@ -333,17 +326,6 @@ export function form(
 		},
 	});
 
-	// buttonProps - preserves search params by default
-	Object.defineProperty(instance, 'buttonProps', {
-		get() {
-			const config = getFormConfig(instance);
-			return {
-				type: 'submit' as const,
-				formaction: buildActionUrl(config.id, false),
-			};
-		},
-	});
-
 	// internal info
 	Object.defineProperty(instance, '__', {
 		value: info,
@@ -369,7 +351,6 @@ export function form(
 export interface ConfiguredForm {
 	readonly method: 'POST';
 	readonly action: string;
-	readonly buttonProps: FormButtonProps;
 	with(options: FormOptions): ConfiguredForm;
 }
 
@@ -391,16 +372,6 @@ function createConfiguredForm(source: InternalForm<any, any>, options: FormOptio
 			return buildActionUrl(config.id, replaceParams);
 		},
 		enumerable: true,
-	});
-
-	Object.defineProperty(configured, 'buttonProps', {
-		get() {
-			const config = getFormConfig(source);
-			return {
-				type: 'submit' as const,
-				formaction: buildActionUrl(config.id, replaceParams),
-			};
-		},
 	});
 
 	Object.defineProperty(configured, 'with', {
