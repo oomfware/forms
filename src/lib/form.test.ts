@@ -269,7 +269,7 @@ describe('form properties', () => {
 		expect(json.action).toBe('?__action=testForm');
 	});
 
-	test('action preserves existing search params by default', async () => {
+	test('action replaces existing search params by default', async () => {
 		const testForm = form(async () => 'ok');
 		const routes = route({ index: '/' });
 		const router = createRouter({ middleware: [asyncContext()] });
@@ -288,10 +288,10 @@ describe('form properties', () => {
 		const response = await router.fetch(new Request('http://test/?page=2&filter=active'));
 		const json: any = await response.json();
 
-		expect(json.action).toBe('?page=2&filter=active&__action=testForm');
+		expect(json.action).toBe('?__action=testForm');
 	});
 
-	test('with({ replaceParams: true }) replaces search params', async () => {
+	test('with({ preserveParams: true }) preserves search params', async () => {
 		const testForm = form(async () => 'ok');
 		const routes = route({ index: '/' });
 		const router = createRouter({ middleware: [asyncContext()] });
@@ -300,7 +300,7 @@ describe('form properties', () => {
 			middleware: [forms({ testForm })],
 			actions: {
 				index() {
-					const configured = testForm.with({ replaceParams: true });
+					const configured = testForm.with({ preserveParams: true });
 					return Response.json({
 						action: configured.action,
 					});
@@ -311,7 +311,7 @@ describe('form properties', () => {
 		const response = await router.fetch(new Request('http://test/?page=2&filter=active'));
 		const json: any = await response.json();
 
-		expect(json.action).toBe('?__action=testForm');
+		expect(json.action).toBe('?page=2&filter=active&__action=testForm');
 	});
 });
 

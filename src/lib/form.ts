@@ -91,10 +91,10 @@ export const FORM_STORE_KEY = createInjectionKey<FormStore>();
  */
 export interface FormOptions {
 	/**
-	 * if true, replaces all existing search params instead of preserving them.
+	 * if true, preserves existing search params instead of replacing them.
 	 * @default false
 	 */
-	replaceParams?: boolean;
+	preserveParams?: boolean;
 }
 
 /**
@@ -228,8 +228,8 @@ export function setFormState<Input, Output>(
 /**
  * builds the form action URL, optionally preserving existing search params.
  */
-function buildActionUrl(configId: string, replaceParams: boolean): string {
-	if (replaceParams) {
+function buildActionUrl(configId: string, preserveParams: boolean): string {
+	if (!preserveParams) {
 		return `?__action=${configId}`;
 	}
 
@@ -289,7 +289,7 @@ export function form(
 		enumerable: true,
 	});
 
-	// action - computed from form store, preserves search params by default
+	// action - computed from form store, replaces search params by default
 	Object.defineProperty(instance, 'action', {
 		get() {
 			const config = getFormConfig(instance);
@@ -358,7 +358,7 @@ export interface ConfiguredForm {
  * creates a configured form wrapper with custom options.
  */
 function createConfiguredForm(source: InternalForm<any, any>, options: FormOptions): ConfiguredForm {
-	const replaceParams = options.replaceParams ?? false;
+	const preserveParams = options.preserveParams ?? false;
 	const configured = {} as ConfiguredForm;
 
 	Object.defineProperty(configured, 'method', {
@@ -369,7 +369,7 @@ function createConfiguredForm(source: InternalForm<any, any>, options: FormOptio
 	Object.defineProperty(configured, 'action', {
 		get() {
 			const config = getFormConfig(source);
-			return buildActionUrl(config.id, replaceParams);
+			return buildActionUrl(config.id, preserveParams);
 		},
 		enumerable: true,
 	});
