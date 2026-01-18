@@ -1,7 +1,7 @@
 {
 	"type": "module",
 	"name": "@oomfware/forms",
-	"version": "0.2.2",
+	"version": "0.3.0",
 	"description": "form validation middleware",
 	"license": "0BSD",
 	"repository": {
