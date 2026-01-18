@@ -412,6 +412,245 @@ describe('nested and array fields', () => {
 	});
 });
 
+describe('middleware levels', () => {
+	test('forms() works at router level (global middleware)', async () => {
+		const globalForm = form(v.object({ name: v.string() }), async (data) => {
+			return { name: data.name };
+		});
+
+		const routes = route({ index: '/', other: '/other' });
+		const router = createRouter({
+			middleware: [asyncContext(), forms({ globalForm })],
+		});
+
+		router.map(routes, {
+			index() {
+				if (globalForm.result) {
+					return Response.json(globalForm.result);
+				}
+				return Response.json({ action: globalForm.action });
+			},
+			other() {
+				// form should be accessible from other routes too
+				return Response.json({ action: globalForm.action });
+			},
+		});
+
+		// test form submission
+		const submitResponse = await router.fetch(
+			new Request('http://test/?__action=globalForm', {
+				method: 'POST',
+				body: createFormData({ name: 'global test' }),
+			}),
+		);
+		expect(submitResponse.status).toBe(200);
+		expect(await submitResponse.json()).toEqual({ name: 'global test' });
+
+		// test form is available on other routes
+		const otherResponse = await router.fetch(new Request('http://test/other'));
+		expect(otherResponse.status).toBe(200);
+		expect(await otherResponse.json()).toEqual({ action: '?__action=globalForm' });
+	});
+
+	test('forms() works at per-action level', async () => {
+		const actionForm = form(v.object({ value: v.string() }), async (data) => {
+			return { value: data.value };
+		});
+
+		const routes = route({ index: '/', special: '/special' });
+		const router = createRouter({ middleware: [asyncContext()] });
+
+		router.map(routes, {
+			index() {
+				return new Response('index');
+			},
+			special: {
+				middleware: [forms({ actionForm })],
+				action() {
+					if (actionForm.result) {
+						return Response.json(actionForm.result);
+					}
+					return Response.json({ action: actionForm.action });
+				},
+			},
+		});
+
+		// test form submission on the specific action
+		const submitResponse = await router.fetch(
+			new Request('http://test/special?__action=actionForm', {
+				method: 'POST',
+				body: createFormData({ value: 'action test' }),
+			}),
+		);
+		expect(submitResponse.status).toBe(200);
+		expect(await submitResponse.json()).toEqual({ value: 'action test' });
+
+		// index route should still work (no form middleware there)
+		const indexResponse = await router.fetch(new Request('http://test/'));
+		expect(indexResponse.status).toBe(200);
+		expect(await indexResponse.text()).toBe('index');
+	});
+
+	test('forms() works with nested controller middleware', async () => {
+		const controllerForm = form(v.object({ data: v.string() }), async (data) => {
+			return { data: data.data };
+		});
+
+		const routes = route({
+			admin: {
+				dashboard: '/admin',
+				settings: '/admin/settings',
+			},
+		});
+		const router = createRouter({ middleware: [asyncContext()] });
+
+		router.map(routes, {
+			admin: {
+				middleware: [forms({ controllerForm })],
+				actions: {
+					dashboard() {
+						if (controllerForm.result) {
+							return Response.json(controllerForm.result);
+						}
+						return Response.json({ action: controllerForm.action });
+					},
+					settings() {
+						// form should be accessible from sibling routes in same controller
+						return Response.json({ action: controllerForm.action });
+					},
+				},
+			},
+		});
+
+		// test form submission
+		const submitResponse = await router.fetch(
+			new Request('http://test/admin?__action=controllerForm', {
+				method: 'POST',
+				body: createFormData({ data: 'nested test' }),
+			}),
+		);
+		expect(submitResponse.status).toBe(200);
+		expect(await submitResponse.json()).toEqual({ data: 'nested test' });
+
+		// test form is available on sibling route
+		const settingsResponse = await router.fetch(new Request('http://test/admin/settings'));
+		expect(settingsResponse.status).toBe(200);
+		expect(await settingsResponse.json()).toEqual({ action: '?__action=controllerForm' });
+	});
+
+	test('conflicting form names: first middleware wins', async () => {
+		const controllerForm = form(v.object({ x: v.string() }), async (data) => {
+			return { from: 'controller', x: data.x };
+		});
+
+		const actionForm = form(v.object({ y: v.string() }), async (data) => {
+			return { from: 'action', y: data.y };
+		});
+
+		const routes = route({ admin: { dashboard: '/admin' } });
+		const router = createRouter({ middleware: [asyncContext()] });
+
+		router.map(routes, {
+			admin: {
+				middleware: [forms({ myForm: controllerForm })],
+				actions: {
+					dashboard: {
+						middleware: [forms({ myForm: actionForm })],
+						action() {
+							return Response.json({
+								controllerResult: controllerForm.result,
+								actionResult: actionForm.result,
+							});
+						},
+					},
+				},
+			},
+		});
+
+		// submit with controller form's expected field
+		const response = await router.fetch(
+			new Request('http://test/admin?__action=myForm', {
+				method: 'POST',
+				body: createFormData({ x: 'test-value' }),
+			}),
+		);
+
+		expect(response.status).toBe(200);
+		const json: any = await response.json();
+		// controller middleware runs first, so it handles the submission
+		expect(json.controllerResult).toEqual({ from: 'controller', x: 'test-value' });
+		expect(json.actionResult).toBeUndefined();
+	});
+
+	test('controller and action middleware compose (both forms accessible)', async () => {
+		const controllerForm = form(v.object({ a: v.string() }), async (data) => {
+			return { a: data.a };
+		});
+
+		const actionForm = form(v.object({ b: v.string() }), async (data) => {
+			return { b: data.b };
+		});
+
+		const routes = route({
+			admin: {
+				dashboard: '/admin',
+			},
+		});
+		const router = createRouter({ middleware: [asyncContext()] });
+
+		router.map(routes, {
+			admin: {
+				middleware: [forms({ controllerForm })],
+				actions: {
+					dashboard: {
+						middleware: [forms({ actionForm })],
+						action() {
+							// both forms should be accessible here
+							return Response.json({
+								controllerAction: controllerForm.action,
+								actionAction: actionForm.action,
+								controllerResult: controllerForm.result,
+								actionResult: actionForm.result,
+							});
+						},
+					},
+				},
+			},
+		});
+
+		// test both forms are accessible
+		const getResponse = await router.fetch(new Request('http://test/admin'));
+		expect(getResponse.status).toBe(200);
+		const getData: any = await getResponse.json();
+		expect(getData.controllerAction).toBe('?__action=controllerForm');
+		expect(getData.actionAction).toBe('?__action=actionForm');
+
+		// test controller-level form submission
+		const controllerSubmit = await router.fetch(
+			new Request('http://test/admin?__action=controllerForm', {
+				method: 'POST',
+				body: createFormData({ a: 'from controller' }),
+			}),
+		);
+		expect(controllerSubmit.status).toBe(200);
+		const controllerData: any = await controllerSubmit.json();
+		expect(controllerData.controllerResult).toEqual({ a: 'from controller' });
+		expect(controllerData.actionResult).toBeUndefined();
+
+		// test action-level form submission
+		const actionSubmit = await router.fetch(
+			new Request('http://test/admin?__action=actionForm', {
+				method: 'POST',
+				body: createFormData({ b: 'from action' }),
+			}),
+		);
+		expect(actionSubmit.status).toBe(200);
+		const actionData: any = await actionSubmit.json();
+		expect(actionData.actionResult).toEqual({ b: 'from action' });
+		expect(actionData.controllerResult).toBeUndefined();
+	});
+});
+
 describe('field methods', () => {
 	test('fields.*.set() updates input value', async () => {
 		const editForm = form(v.object({ title: v.string() }), async (data) => {

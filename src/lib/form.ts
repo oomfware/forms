@@ -79,6 +79,8 @@ export interface FormStore {
 	configs: WeakMap<InternalForm<any, any>, FormConfig>;
 	/** state for each form instance */
 	state: WeakMap<InternalForm<any, any>, FormState>;
+	/** action names already processed in this request (first middleware wins) */
+	processedActions: Set<string>;
 }
 
 /**

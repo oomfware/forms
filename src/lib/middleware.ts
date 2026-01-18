@@ -8,7 +8,6 @@ import {
 	setFormState,
 	type Form,
 	type FormConfig,
-	type FormStore,
 	type InternalForm,
 } from './form.ts';
 
@@ -71,7 +70,7 @@ function isCrossOrigin(request: Request): boolean {
  * ```
  */
 export function forms(definitions: FormDefinitions): Middleware {
-	const formConfig = new WeakMap<InternalForm<any, any>, FormConfig>();
+	const formConfigs = new Map<InternalForm<any, any>, FormConfig>();
 	const formsById = new Map<string, InternalForm<any, any>>();
 
 	for (const [name, formInstance] of Object.entries(definitions)) {
@@ -80,29 +79,39 @@ export function forms(definitions: FormDefinitions): Middleware {
 		}
 
 		const f = formInstance as InternalForm<any, any>;
-
-		formConfig.set(f, { id: name });
+		formConfigs.set(f, { id: name });
 		formsById.set(name, f);
 	}
 
 	return async ({ request, url, store }, next) => {
-		// create form store for this request
-		const formStore: FormStore = {
-			configs: formConfig,
-			state: new WeakMap(),
-		};
+		// get or create form store for this request
+		// this allows multiple forms() middlewares to compose
+		let formStore = store.inject(FORM_STORE_KEY);
+		if (!formStore) {
+			formStore = {
+				configs: new WeakMap(),
+				state: new WeakMap(),
+				processedActions: new Set(),
+			};
+			store.provide(FORM_STORE_KEY, formStore);
+		}
 
-		// inject form store into context
-		store.provide(FORM_STORE_KEY, formStore);
+		// merge this middleware's forms into the store
+		for (const [form, config] of formConfigs) {
+			formStore.configs.set(form, config);
+		}
 
 		// check if this is a form submission
 		const action = url.searchParams.get('__action');
 
-		if (action && request.method === 'POST') {
+		if (action && request.method === 'POST' && !formStore.processedActions.has(action)) {
 			// find the form
 			const formInstance = formsById.get(action);
 
 			if (formInstance) {
+				// mark as processed (first middleware wins on name conflicts)
+				formStore.processedActions.add(action);
+
 				// reject cross-origin form submissions
 				if (isCrossOrigin(request)) {
 					return new Response(null, { status: 403 });
