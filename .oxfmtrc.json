@@ -1,5 +1,6 @@
 {
-	"plugins": ["@prettier/plugin-oxc", "@ianvs/prettier-plugin-sort-imports"],
+	"$schema": "https://unpkg.com/oxfmt/configuration_schema.json",
+
 	"trailingComma": "all",
 	"useTabs": true,
 	"tabWidth": 2,
@@ -8,21 +9,19 @@
 	"singleQuote": true,
 	"bracketSpacing": true,
 
-	"importOrder": [
-		"<BUILTIN_MODULES>",
-		"^bun(?::(.*))?$",
-		"",
-		"<THIRD_PARTY_MODULES>",
-		"",
-		"^\\.\\.",
-		"",
-		"^\\."
-	],
-	"importOrderTypeScriptVersion": "5.0.0",
+	"experimentalSortImports": {
+		"groups": [["builtin", "bun"], ["external"], ["parent"], ["sibling", "index"]],
+		"customGroups": [
+			{
+				"groupName": "bun",
+				"elementNamePattern": ["bun", "bun:"]
+			}
+		]
+	},
 
 	"overrides": [
 		{
-			"files": ["tsconfig.json", "jsconfig.json"],
+			"files": ["tsconfig.json"],
 			"options": {
 				"parser": "jsonc"
 			}

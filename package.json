@@ -1,5 +1,4 @@
 {
-	"type": "module",
 	"name": "@oomfware/forms",
 	"version": "0.3.0",
 	"description": "form validation middleware",
@@ -8,46 +7,45 @@
 		"type": "git",
 		"url": "https://codeberg.org/oomfware/forms"
 	},
-	"exports": {
-		".": "./dist/index.mjs",
-		"./package.json": "./package.json"
-	},
-	"main": "./dist/index.mjs",
-	"module": "./dist/index.mjs",
-	"types": "./dist/index.d.mts",
-	"publishConfig": {
-		"access": "public"
-	},
 	"files": [
 		"dist/",
 		"src/",
 		"!src/**/*.bench.ts",
 		"!src/**/*.test.ts"
 	],
+	"type": "module",
+	"main": "./dist/index.mjs",
+	"module": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
+	"exports": {
+		".": "./dist/index.mjs",
+		"./package.json": "./package.json"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
 	"scripts": {
 		"build": "tsdown",
 		"dev": "tsdown --watch",
 		"typecheck": "tsc --noEmit",
-		"fmt": "PRETTIER_EXPERIMENTAL_CLI=1 prettier --cache --write .",
+		"fmt": "oxfmt",
 		"lint": "oxlint",
 		"prepublishOnly": "pnpm run build"
 	},
+	"dependencies": {
+		"@standard-schema/spec": "^1.1.0"
+	},
 	"devDependencies": {
-		"@ianvs/prettier-plugin-sort-imports": "^4.7.0",
 		"@oomfware/fetch-router": "^0.2.1",
-		"@prettier/plugin-oxc": "^0.1.3",
 		"@types/bun": "^1.3.5",
 		"bumpp": "^10.3.2",
+		"oxfmt": "^0.28.0",
 		"oxlint": "^1.38.0",
-		"prettier": "^3.7.4",
 		"tsdown": "^0.18.1",
 		"typescript": "^5.9.3",
 		"valibot": "^1.2.0"
 	},
 	"peerDependencies": {
 		"@oomfware/fetch-router": "^0.2.1"
-	},
-	"dependencies": {
-		"@standard-schema/spec": "^1.1.0"
 	}
 }
