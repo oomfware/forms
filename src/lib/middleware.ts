@@ -78,6 +78,7 @@ export function forms(definitions: FormDefinitions): Middleware {
 			continue;
 		}
 
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion
 		const f = formInstance as InternalForm<any, any>;
 		formConfigs.set(f, { id: name });
 		formsById.set(name, f);
@@ -118,9 +119,11 @@ export function forms(definitions: FormDefinitions): Middleware {
 				}
 				// parse form data
 				const formData = await request.formData();
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion
 				const data = convertFormData(formData as unknown as FormData);
 
 				// process the form
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion
 				const state = await processForm(formInstance, data as any);
 
 				// store the state

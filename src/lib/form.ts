@@ -131,41 +131,42 @@ export interface InternalForm<Input extends FormInput | void, Output> extends Fo
 
 // #region issue creator
 
+function createIssue(message: string, path: (string | number)[] = []): StandardSchemaV1.Issue {
+	return { message, path };
+}
+
+function createIssueProxy(
+	key: string | number,
+	path: (string | number)[],
+): (message: string) => StandardSchemaV1.Issue {
+	const newPath = [...path, key];
+
+	const issueFunc = (message: string) => createIssue(message, newPath);
+
+	return new Proxy(issueFunc, {
+		get(_target, prop) {
+			if (typeof prop === 'symbol') return undefined;
+
+			if (/^\d+$/.test(prop)) {
+				return createIssueProxy(parseInt(prop, 10), newPath);
+			}
+
+			return createIssueProxy(prop, newPath);
+		},
+	});
+}
+
 /**
  * creates an issue creator proxy that builds up paths for field-specific issues.
  */
 function createIssueCreator<T>(): InvalidField<T> {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion
 	return new Proxy((message: string) => createIssue(message), {
 		get(_target, prop) {
 			if (typeof prop === 'symbol') return undefined;
 			return createIssueProxy(prop, []);
 		},
 	}) as InvalidField<T>;
-
-	function createIssue(message: string, path: (string | number)[] = []): StandardSchemaV1.Issue {
-		return { message, path };
-	}
-
-	function createIssueProxy(
-		key: string | number,
-		path: (string | number)[],
-	): (message: string) => StandardSchemaV1.Issue {
-		const newPath = [...path, key];
-
-		const issueFunc = (message: string) => createIssue(message, newPath);
-
-		return new Proxy(issueFunc, {
-			get(_target, prop) {
-				if (typeof prop === 'symbol') return undefined;
-
-				if (/^\d+$/.test(prop)) {
-					return createIssueProxy(parseInt(prop, 10), newPath);
-				}
-
-				return createIssueProxy(prop, newPath);
-			},
-		});
-	}
 }
 
 // #endregion
@@ -209,6 +210,7 @@ export function getFormState<Input, Output>(
 	form: InternalForm<any, any>,
 ): FormState<Input, Output> | undefined {
 	const store = getFormStore();
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion
 	return store.state.get(form) as FormState<Input, Output> | undefined;
 }
 
@@ -273,11 +275,14 @@ export function form(
 	validateOrFn: StandardSchemaV1 | 'unchecked' | (() => MaybePromise<unknown>),
 	maybeFn?: (data: any, issue: any) => MaybePromise<unknown>,
 ): Form<any, any> {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion
 	const fn = (maybeFn ?? validateOrFn) as (data: any, issue: any) => MaybePromise<unknown>;
 
 	const schema: StandardSchemaV1 | null =
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion
 		!maybeFn || validateOrFn === 'unchecked' ? null : (validateOrFn as StandardSchemaV1);
 
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion
 	const instance = {} as InternalForm<any, any>;
 
 	const info: FormInfo = {
@@ -312,12 +317,14 @@ export function form(
 		get() {
 			return createFieldProxy(
 				{},
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion
 				() => (getFormState(instance)?.input as Record<string, unknown>) ?? {},
 				(path, value) => {
 					const currentState = getFormState(instance) ?? { input: {} };
 					if (path.length === 0) {
 						setFormState(instance, { ...currentState, input: value });
 					} else {
+						// eslint-disable-next-line typescript/no-unsafe-type-assertion
 						const input = (currentState.input as Record<string, unknown>) ?? {};
 						deepSet(input, path.map(String), value);
 						setFormState(instance, { ...currentState, input });
@@ -361,6 +368,7 @@ export interface ConfiguredForm {
  */
 function createConfiguredForm(source: InternalForm<any, any>, options: FormOptions): ConfiguredForm {
 	const preserveParams = options.preserveParams ?? false;
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion
 	const configured = {} as ConfiguredForm;
 
 	Object.defineProperty(configured, 'method', {
@@ -400,11 +408,13 @@ function redactSensitiveFields(obj: Record<string, unknown>): Record<string, unk
 		const value = obj[key];
 
 		if (value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof File)) {
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion
 			result[key] = redactSensitiveFields(value as Record<string, unknown>);
 		} else if (Array.isArray(value)) {
 			result[key] = value.map((item) =>
 				item !== null && typeof item === 'object' && !(item instanceof File)
-					? redactSensitiveFields(item as Record<string, unknown>)
+					? // eslint-disable-next-line typescript/no-unsafe-type-assertion
+						redactSensitiveFields(item as Record<string, unknown>)
 					: item,
 			);
 		} else {
@@ -435,6 +445,7 @@ export async function processForm(formInstance: InternalForm<any, any>, data: Fo
 				input: redactSensitiveFields(data),
 			};
 		}
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion
 		validatedData = result.value as FormInput;
 	}
 
@@ -451,7 +462,7 @@ export async function processForm(formInstance: InternalForm<any, any>, data: Fo
 		if (e instanceof ValidationError) {
 			return {
 				result: undefined,
-				issues: flattenIssues(e.issues.map((issue) => normalizeIssue(issue, true))),
+				issues: flattenIssues(e.issues.map((i) => normalizeIssue(i, true))),
 				input: redactSensitiveFields(data),
 			};
 		}

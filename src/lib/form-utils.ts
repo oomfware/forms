@@ -8,6 +8,7 @@ import type { FormIssue, InputType, InternalFormIssue } from './types.ts';
 export function setNestedValue(object: Record<string, unknown>, pathString: string, value: unknown): void {
 	if (pathString.startsWith('n:')) {
 		pathString = pathString.slice(2);
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion
 		value = value === '' ? undefined : parseFloat(value as string);
 	} else if (pathString.startsWith('b:')) {
 		pathString = pathString.slice(2);
@@ -37,11 +38,13 @@ export function convertFormData(data: FormData): Record<string, unknown> {
 
 		// an empty `<input type="file">` will submit a non-existent file, bizarrely
 		values = values.filter(
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion
 			(entry) => typeof entry === 'string' || (entry as File).name !== '' || (entry as File).size > 0,
 		);
 
 		if (key.startsWith('n:')) {
 			key = key.slice(2);
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion
 			values = values.map((v) => (v === '' ? undefined : parseFloat(v as string)));
 		} else if (key.startsWith('b:')) {
 			key = key.slice(2);
@@ -99,6 +102,7 @@ export function deepSet(object: Record<string, unknown>, keys: string[], value: 
 			current[key] = isArray ? [] : {};
 		}
 
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion
 		current = current[key] as Record<string, unknown>;
 	}
 
@@ -116,6 +120,7 @@ export function deepGet(object: Record<string, unknown>, path: (string | number)
 		if (current == null || typeof current !== 'object') {
 			return current;
 		}
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion
 		current = (current as Record<string | number, unknown>)[key];
 	}
 	return current;
@@ -131,8 +136,10 @@ export function normalizeIssue(issue: StandardSchemaV1.Issue, server = false): I
 		let name = '';
 
 		for (const segment of issue.path) {
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion
 			const key = typeof segment === 'object' ? (segment.key as string | number) : segment;
 
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion
 			normalized.path.push(key as string | number);
 
 			if (typeof key === 'number') {
@@ -210,9 +217,11 @@ export function createFieldProxy<T>(
 		return deepGet(getInput(), path);
 	};
 
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion
 	return new Proxy(target as object, {
-		get(target, prop) {
-			if (typeof prop === 'symbol') return (target as Record<symbol, unknown>)[prop];
+		get(_target, prop) {
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion
+			if (typeof prop === 'symbol') return (_target as Record<symbol, unknown>)[prop];
 
 			// handle array access like jobs[0]
 			if (/^\d+$/.test(prop)) {
@@ -325,6 +334,7 @@ export function createFieldProxy<T>(
 									}
 
 									if (isArray) {
+										// eslint-disable-next-line typescript/no-unsafe-type-assertion
 										return ((value as string[] | undefined) ?? []).includes(inputValue!);
 									}
 
@@ -347,7 +357,8 @@ export function createFieldProxy<T>(
 							enumerable: true,
 							get() {
 								const value = getValue();
-								return value != null ? String(value) : '';
+								// eslint-disable-next-line typescript/no-unsafe-type-assertion
+								return value != null ? String(value as string | number) : '';
 							},
 						},
 					});
